@@ -5,22 +5,6 @@ Get all rates needed to project the standard mizer model.
 
 Calls other rate functions in sequence and collects the results in a dictionary.
 
-By default, this function returns a dictionary with the following components:
-  - `encounter` from `mizer_encounter()`
-  - `feeding_level` from `mizer_feeding_level()`
-  - `e` from `mizer_e_repro_and_growth()`
-  - `e_repro` from `mizer_e_repro()`
-  - `e_growth` from `mizer_e_growth()`
-  - `pred_rate` from `mizer_pred_rate()`
-  - `pred_mort` from `mizer_pred_mort()`
-  - `f_mort` from `mizer_f_mort()`
-  - `mort` from `mizer_mort()`
-  - `rdi` from `mizer_rdi()`
-  - `rdd` from `beverton_holt_rdd()`
-  - `resource_mort` from `mizer_resource_mort()`
-
-However, you can replace any of these rate functions with your own rate function if you wish. See `set_rate_function()` for details.
-
 # Arguments
 - `params`: A `MizerParams` object.
 - `n`: A matrix of species abundances (species x size).
@@ -32,9 +16,21 @@ However, you can replace any of these rate functions with your own rate function
 - `kwargs`: Unused.
 
 # Returns
-- Dictionary of rates.
+- Dictionary of rates with the following components:
+- `encounter` from `mizer_encounter()`
+- `feeding_level` from `mizer_feeding_level()`
+- `e` from `mizer_e_repro_and_growth()`
+- `e_repro` from `mizer_e_repro()`
+- `e_growth` from `mizer_e_growth()`
+- `pred_rate` from `mizer_pred_rate()`
+- `pred_mort` from `mizer_pred_mort()`
+- `f_mort` from `mizer_f_mort()`
+- `mort` from `mizer_mort()`
+- `rdi` from `mizer_rdi()`
+- `rdd` from `beverton_holt_rdd()`
+- `resource_mort` from `mizer_resource_mort()`
 """
-function mizer_rates(params, n, n_pp, n_other;
+function juliaRates(params, n, n_pp, n_other;
   t=0, effort, rates_fns, kwargs...)
   r = Dict{String,Any}()
 
