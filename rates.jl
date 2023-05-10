@@ -1,5 +1,5 @@
 """
-    mizer_rates(params, n, n_pp, n_other; t=0, effort, rates_fns, kwargs...)
+    juliaRates(params, n, n_pp, n_other; t=0, effort, rates_fns, kwargs...)
 
 Get all rates needed to project the standard mizer model.
 
@@ -30,53 +30,53 @@ Calls other rate functions in sequence and collects the results in a dictionary.
 - `rdd` from `beverton_holt_rdd()`
 - `resource_mort` from `mizer_resource_mort()`
 """
-function juliaRates(params, n, n_pp, n_other;
-  t=0, effort, rates_fns, kwargs...)
-  r = Dict{String,Any}()
+function juliaRates(params; n, n_pp, n_other,
+                    t=0, effort, rates_fns, kwargs...)
+    r = Dict{String,Any}()
 
-  ## Growth ----
-  # Calculate rate E_{e,i}(w) of encountered food
-  r["encounter"] = juliaEncounter(params, n, n_pp, n_other, t, kwargs...)
-  # Calculate feeding level f_i(w)
-  r["feeding_level"] = juliaFeedingLevel(params, n, n_pp, n_other,
-    encounter=r["encounter"], t=t, kwargs...)
-  # Calculate the energy available for reproduction and growth
-  r["e"] = juliaEReproAndGrowth(params, n, n_pp, n_other,
-    encounter=r["encounter"], feeding_level=r["feeding_level"], t=t, kwargs...)
-  # Calculate the energy for reproduction
-  r["e_repro"] = juliaERepro(params, n, n_pp, n_other,
-    e=r["e"], t=t, kwargs...)
-  # Calculate the growth rate g_i(w)
-  r["e_growth"] = juliaEGrowth(params, n, n_pp, n_other,
-    e_repro=r["e_repro"], e=r["e"], t=t, kwargs...)
+    ## Growth ----
+    # Calculate rate E_{e,i}(w) of encountered food
+    r["encounter"] = juliaEncounter(params, n, n_pp, n_other, t, kwargs...)
+    # Calculate feeding level f_i(w)
+    r["feeding_level"] = juliaFeedingLevel(params, n, n_pp, n_other,
+                                           encounter=r["encounter"], t=t, kwargs...)
+    # Calculate the energy available for reproduction and growth
+    r["e"] = juliaEReproAndGrowth(params, n, n_pp, n_other, encounter=r["encounter"],
+                                  feeding_level=r["feeding_level"], t=t, kwargs...)
+    # Calculate the energy for reproduction
+    r["e_repro"] = juliaERepro(params, n, n_pp, n_other, e=r["e"], t=t, kwargs...)
+    # Calculate the growth rate g_i(w)
+    r["e_growth"] = juliaEGrowth(params, n, n_pp, n_other, e_repro=r["e_repro"],
+                                 e=r["e"], t=t, kwargs...)
 
-  ## Mortality ----
-  # Calculate the predation rate
-  r["pred_rate"] = juliaPredRate(params, n, n_pp, n_other,
-    feeding_level=r["feeding_level"], t=t, kwargs...)
-  # Calculate predation mortality on fish \mu_{p,i}(w)
-  r["pred_mort"] = juliaPredMort(params, n, n_pp, n_other,
-    pred_rate=r["pred_rate"], t=t, kwargs...)
-  # Calculate fishing mortality
-  r["f_mort"] = juliaFMort(params, n, n_pp, n_other,
-    effort=effort, t=t,
-    e_growth=r["e_growth"], pred_mort=r["pred_mort"], kwargs...)
-  # Calculate total mortality \mu_i(w)
-  r["mort"] = juliaMort(params, n, n_pp, n_other,
-    f_mort=r["f_mort"], pred_mort=r["pred_mort"], t=t, kwargs...)
+    ## Mortality ----
+    # Calculate the predation rate
+    r["pred_rate"] = juliaPredRate(params, n, n_pp, n_other,
+                                   feeding_level=r["feeding_level"], t=t, kwargs...)
+    # Calculate predation mortality on fish \mu_{p,i}(w)
+    r["pred_mort"] = juliaPredMort(params, n, n_pp, n_other,
+                                   pred_rate=r["pred_rate"], t=t, kwargs...)
+    # Calculate fishing mortality
+    r["f_mort"] = juliaFMort(params, n, n_pp, n_other, effort=effort, t=t,
+                             e_growth=r["e_growth"], pred_mort=r["pred_mort"], kwargs...)
+    # Calculate total mortality \mu_i(w)
+    r["mort"] = juliaMort(params, n, n_pp, n_other, f_mort=r["f_mort"],
+                          pred_mort=r["pred_mort"], t=t, kwargs...)
 
-  ## Reproduction ----
-  # R_di
-  r["rdi"] = juliaRDI(params, n, n_pp, n_other,
-    e_growth=r["e_growth"],
-    mort=r["mort"],
-    e_repro=r["e_repro"], t=t, kwargs...)
-  # R_dd
-  r["rdd"] = juliaRDD(rdi=r["rdi"], species_params=params.species_params, kwargs...)
+    ## Reproduction ----
+    # R_di
+    r["rdi"] = juliaRDI(params, n, n_pp, n_other, e_growth=r["e_growth"], mort=r["mort"],
+                        e_repro=r["e_repro"], t=t, kwargs...)
+    # R_dd
+    r["rdd"] = juliaRDD(rdi=r["rdi"], species_params=params.species_params, kwargs...)
 
-  ## Resource ----
-  # Calculate mortality on the resource spectrum
-  r["resource_mort"] = juliaResourceMort(params, n, n_pp, n_other,
-    pred_rate=r["pred_rate"], t=t, kwargs...)
-  return r
+    ## Resource ----
+    # Calculate mortality on the resource spectrum
+    r["resource_mort"] = juliaResourceMort(params, n, n_pp, n_other,
+                                           pred_rate=r["pred_rate"], t=t, kwargs...)
+    return r
+end
+
+function juliaEncounter(params; n, n_pp, n_other, t=0, kwargs...)
+    return 0
 end
