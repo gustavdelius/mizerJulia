@@ -1,6 +1,6 @@
-using RCall
 using Dates
 using DataFrames
+using RCall
 
 struct Params
     # metadata::Dict{String,Any}
@@ -48,7 +48,7 @@ struct Params
 end
 
 import RCall.rcopy
-function rcopy(::Type{Params}, robj::RObject{S4Sxp})
+function rcopy(::Type{Params}, robj::Ptr{S4Sxp})
     # Check that the R object is a MizerParams object
     if !convert(Bool, rcall(:is, robj, "MizerParams")[])
         throw(ArgumentError("RObject is not a MizerParams object"))
@@ -59,54 +59,68 @@ function rcopy(::Type{Params}, robj::RObject{S4Sxp})
         pred_kernel = robj[:pred_kernel]
     end
     Params(
-                # rcopy(Dict{Any,Any}, robj[:metadata]),
-                # rcopy(Any, robj[:mizer_version]),
-                # rcopy(String, robj[:extensions]),
-                # rcopy(DateTime, robj[:time_created]),
-                # rcopy(DateTime, robj[:time_modified]),
-                rcopy(Array{Float64, 1}, robj[:w]),
-                rcopy(Array{Float64, 1}, robj[:dw]),
-                rcopy(Array{Float64, 1}, robj[:w_full]),
-                rcopy(Array{Float64, 1}, robj[:dw_full]),
-                rcopy(Array{Int, 1}, robj[:w_min_idx]),
-                rcopy(Array{Float64, 2}, robj[:maturity]),
-                rcopy(Array{Float64, 2}, robj[:psi]),
-                rcopy(Array{Float64, 2}, robj[:initial_n]),
-                rcopy(Array{Float64, 2}, robj[:intake_max]),
-                rcopy(Array{Float64, 2}, robj[:search_vol]),
-                rcopy(Array{Float64, 2}, robj[:metab]),
-                rcopy(Array{Float64, 3}, pred_kernel),
-                # rcopy(Array{Float64,2}, robj[:ft_pred_kernel_e]),
-                # rcopy(Array{Float64,2}, robj[:ft_pred_kernel_p]),
-                rcopy(Array{Float64, 2}, robj[:mu_b]),
-                rcopy(Array{Float64, 1}, robj[:rr_pp]),
-                rcopy(Array{Float64, 1}, robj[:cc_pp]),
-                # rcopy(String, robj[:resource_dynamics]),
-                rcopy(Dict{String, Any}, robj[:resource_params]),
-                # rcopy(Dict{Any,Any}, robj[:other_dynamics]),
-                # rcopy(Dict{Any,Any}, robj[:other_params]),
-                # rcopy(Dict{Any,Any}, robj[:other_encounter]),
-                # rcopy(Dict{Any,Any}, robj[:other_mort]),
-                # rcopy(Dict{Any,Any}, robj[:rates_funcs]),
-                # rcopy(Array{Float64,1}, robj[:sc]),
-                rcopy(Array{Float64, 1}, robj[:initial_n_pp]),
-                # rcopy(Dict{String,Any}, robj[:initial_n_other]),
-                rcopy(DataFrame, robj[:species_params]),
-                rcopy(Array{Float64, 2}, robj[:interaction]),
-                rcopy(DataFrame, robj[:gear_params]),
-                rcopy(Array{Float64, 3}, robj[:selectivity]),
-                rcopy(Array{Float64, 2}, robj[:catchability]),
-                rcopy(Array{Float64, 1}, robj[:initial_effort])
-                # rcopy(Array{Float64,1}, robj[:A]),
-                # rcopy(String, robj[:linecolour]),
-                # rcopy(String, robj[:linetype]),
-                # rcopy(Array{Float64,3}, robj[:ft_mask])
-                )
+           # rcopy(Dict{Any,Any}, robj[:metadata]),
+           # rcopy(Any, robj[:mizer_version]),
+           # rcopy(String, robj[:extensions]),
+           # rcopy(DateTime, robj[:time_created]),
+           # rcopy(DateTime, robj[:time_modified]),
+           rcopy(Array{Float64, 1}, robj[:w]),
+           rcopy(Array{Float64, 1}, robj[:dw]),
+           rcopy(Array{Float64, 1}, robj[:w_full]),
+           rcopy(Array{Float64, 1}, robj[:dw_full]),
+           rcopy(Array{Int, 1}, robj[:w_min_idx]),
+           rcopy(Array{Float64, 2}, robj[:maturity]),
+           rcopy(Array{Float64, 2}, robj[:psi]),
+           rcopy(Array{Float64, 2}, robj[:initial_n]),
+           rcopy(Array{Float64, 2}, robj[:intake_max]),
+           rcopy(Array{Float64, 2}, robj[:search_vol]),
+           rcopy(Array{Float64, 2}, robj[:metab]),
+           rcopy(Array{Float64, 3}, pred_kernel),
+           # rcopy(Array{Float64,2}, robj[:ft_pred_kernel_e]),
+           # rcopy(Array{Float64,2}, robj[:ft_pred_kernel_p]),
+           rcopy(Array{Float64, 2}, robj[:mu_b]),
+           rcopy(Array{Float64, 1}, robj[:rr_pp]),
+           rcopy(Array{Float64, 1}, robj[:cc_pp]),
+           # rcopy(String, robj[:resource_dynamics]),
+           rcopy(Dict{String, Any}, robj[:resource_params]),
+           # rcopy(Dict{Any,Any}, robj[:other_dynamics]),
+           # rcopy(Dict{Any,Any}, robj[:other_params]),
+           # rcopy(Dict{Any,Any}, robj[:other_encounter]),
+           # rcopy(Dict{Any,Any}, robj[:other_mort]),
+           # rcopy(Dict{Any,Any}, robj[:rates_funcs]),
+           # rcopy(Array{Float64,1}, robj[:sc]),
+           rcopy(Array{Float64, 1}, robj[:initial_n_pp]),
+           # rcopy(Dict{String,Any}, robj[:initial_n_other]),
+           rcopy(DataFrame, robj[:species_params]),
+           rcopy(Array{Float64, 2}, robj[:interaction]),
+           rcopy(DataFrame, robj[:gear_params]),
+           rcopy(Array{Float64, 3}, robj[:selectivity]),
+           rcopy(Array{Float64, 2}, robj[:catchability]),
+           rcopy(Array{Float64, 1}, robj[:initial_effort])
+           # rcopy(Array{Float64,1}, robj[:A]),
+           # rcopy(String, robj[:linecolour]),
+           # rcopy(String, robj[:linetype]),
+           # rcopy(Array{Float64,3}, robj[:ft_mask])
+           )
 end
 
-import RCall: RClass, rcopytype
+using RCall
+R"""
+library(mizer)
+params <- setPredKernel(NS_params,pred_kernel=getPredKernel(NS_params))
+"""
 
+@rget params;
+typeof(params)
+
+
+
+import RCall: RClass, rcopytype
 rcopytype(::Type{RClass{:MizerParams}}, s::Ptr{S4Sxp}) = Params
+
+#y = rcopy(params);
+#typeof(y)
+
 
 """
     juliaRates(params, n, n_pp, n_other; t=0, effort, rates_fns, kwargs...)

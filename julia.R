@@ -7,8 +7,10 @@ julia_eval("sqrt(2)")
 
 julia_source("rates.jl")
 
+params <- setPredKernel(NS_params, pred_kernel = getPredKernel(NS_params))
+
 julia_assign("params", NS_params)
-julia_eval("params[:initial_effort]")
+julia_eval("params.initial_effort")
 
 julia_console()
 
@@ -21,4 +23,4 @@ params <- setRateFunction(params, "FeedingLevel", "juliaFeedingLevel")
 
 sim <- project(params, t_max = 10)
 
-julia_assign("intake_max", params@intake_max)
+waldo::compare(getFeedingLevel(NS_params), getFeedingLevel(params))
