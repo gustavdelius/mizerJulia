@@ -104,23 +104,17 @@ function rcopy(::Type{Params}, robj::Ptr{S4Sxp})
            )
 end
 
+import RCall: RClass, rcopytype
+rcopytype(::Type{RClass{:MizerParams}}, s::Ptr{S4Sxp}) = Params
+
 using RCall
 R"""
 library(mizer)
-params <- setPredKernel(NS_params,pred_kernel=getPredKernel(NS_params))
+params <- NS_params
 """
 
 @rget params;
 typeof(params)
-
-
-
-import RCall: RClass, rcopytype
-rcopytype(::Type{RClass{:MizerParams}}, s::Ptr{S4Sxp}) = Params
-
-#y = rcopy(params);
-#typeof(y)
-
 
 """
     juliaRates(params, n, n_pp, n_other; t=0, effort, rates_fns, kwargs...)
@@ -154,61 +148,87 @@ Calls other rate functions in sequence and collects the results in a dictionary.
 - `rdd` from `beverton_holt_rdd()`
 - `resource_mort` from `mizer_resource_mort()`
 """
-function juliaRates(params; n, n_pp, n_other,
-                    t = 0, effort, rates_fns, kwargs...)
+function julia_rates(params::Params, n, n_pp; effort, t = 0)
     r = Dict{String, Any}()
 
     ## Growth ----
     # Calculate rate E_{e,i}(w) of encountered food
-    r["encounter"] = juliaEncounter(params, n, n_pp, n_other, t, kwargs...)
+    r["encounter"] = encounter(params, n, n_pp, t)
     # Calculate feeding level f_i(w)
-    r["feeding_level"] = feeding_level(params, n, n_pp, n_other,
-                                       encounter = r["encounter"], t = t, kwargs...)
+    r["feeding_level"] = feeding_level(params, n, n_pp,
+                                       encounter = r["encounter"], t = t)
     # Calculate the energy available for reproduction and growth
-    r["e"] = juliaEReproAndGrowth(params, n, n_pp, n_other, encounter = r["encounter"],
-                                  feeding_level = r["feeding_level"], t = t, kwargs...)
-    # Calculate the energy for reproduction
-    r["e_repro"] = juliaERepro(params, n, n_pp, n_other, e = r["e"], t = t, kwargs...)
-    # Calculate the growth rate g_i(w)
-    r["e_growth"] = juliaEGrowth(params, n, n_pp, n_other, e_repro = r["e_repro"],
-                                 e = r["e"], t = t, kwargs...)
+    r["e"] = e_repro_and_growth(params, n, n_pp, encounter = r["encounter"],
+                                feeding_level = r["feeding_level"], t = t)
+    # # Calculate the energy for reproduction
+    # r["e_repro"] = juliaERepro(params, n, n_pp, e = r["e"], t = t, kwargs...)
+    # # Calculate the growth rate g_i(w)
+    # r["e_growth"] = juliaEGrowth(params, n, n_pp, e_repro = r["e_repro"],
+    #                              e = r["e"], t = t, kwargs...)
 
-    ## Mortality ----
-    # Calculate the predation rate
-    r["pred_rate"] = juliaPredRate(params, n, n_pp, n_other,
-                                   feeding_level = r["feeding_level"], t = t, kwargs...)
-    # Calculate predation mortality on fish \mu_{p,i}(w)
-    r["pred_mort"] = juliaPredMort(params, n, n_pp, n_other,
-                                   pred_rate = r["pred_rate"], t = t, kwargs...)
-    # Calculate fishing mortality
-    r["f_mort"] = juliaFMort(params, n, n_pp, n_other, effort = effort, t = t,
-                             e_growth = r["e_growth"], pred_mort = r["pred_mort"],
-                             kwargs...)
-    # Calculate total mortality \mu_i(w)
-    r["mort"] = juliaMort(params, n, n_pp, n_other, f_mort = r["f_mort"],
-                          pred_mort = r["pred_mort"], t = t, kwargs...)
+    # ## Mortality ----
+    # # Calculate the predation rate
+    # r["pred_rate"] = juliaPredRate(params, n, n_pp, n_other,
+    #                                feeding_level = r["feeding_level"], t = t, kwargs...)
+    # # Calculate predation mortality on fish \mu_{p,i}(w)
+    # r["pred_mort"] = juliaPredMort(params, n, n_pp, n_other,
+    #                                pred_rate = r["pred_rate"], t = t, kwargs...)
+    # # Calculate fishing mortality
+    # r["f_mort"] = juliaFMort(params, n, n_pp, n_other, effort = effort, t = t,
+    #                          e_growth = r["e_growth"], pred_mort = r["pred_mort"],
+    #                          kwargs...)
+    # # Calculate total mortality \mu_i(w)
+    # r["mort"] = juliaMort(params, n, n_pp, n_other, f_mort = r["f_mort"],
+    #                       pred_mort = r["pred_mort"], t = t, kwargs...)
 
-    ## Reproduction ----
-    # R_di
-    r["rdi"] = juliaRDI(params, n, n_pp, n_other, e_growth = r["e_growth"],
-                        mort = r["mort"],
-                        e_repro = r["e_repro"], t = t, kwargs...)
-    # R_dd
-    r["rdd"] = juliaRDD(rdi = r["rdi"], species_params = params.species_params, kwargs...)
+    # ## Reproduction ----
+    # # R_di
+    # r["rdi"] = juliaRDI(params, n, n_pp, n_other, e_growth = r["e_growth"],
+    #                     mort = r["mort"],
+    #                     e_repro = r["e_repro"], t = t, kwargs...)
+    # # R_dd
+    # r["rdd"] = juliaRDD(rdi = r["rdi"], species_params = params.species_params, kwargs...)
 
-    ## Resource ----
-    # Calculate mortality on the resource spectrum
-    r["resource_mort"] = juliaResourceMort(params, n, n_pp, n_other,
-                                           pred_rate = r["pred_rate"], t = t, kwargs...)
+    # ## Resource ----
+    # # Calculate mortality on the resource spectrum
+    # r["resource_mort"] = juliaResourceMort(params, n, n_pp, n_other,
+    #                                        pred_rate = r["pred_rate"], t = t, kwargs...)
     return r
 end
 
-function juliaEncounter(params; n, n_pp, n_other, t = 0, kwargs...)
-    return 0
+function encounter(params::Params, n, n_pp; t = 0)
+    E = zeros(size(n))
+    num_sp, num_w = size(n)
+    for i in 1:num_sp
+        for wi in 1:num_w
+            for j in 1:num_sp
+                for wj in 1:num_w
+                    E[i, wi] += params.interaction[i, j] * n[j, wj] *
+                                params.pred_kernel[i, wi, wj] * params.w[wj] *
+                                params.dw[wj]
+                end
+            end
+            for wj in eachindex(n_pp)
+                E[i, wi] += params.species_params.interaction_resource[i] * n_pp[wj] *
+                            params.pred_kernel[i, wi, wj] * params.w_full[wj] *
+                            params.dw_full[wj]
+            end
+            E[i, wi] *= params.search_vol[i, wi]
+        end
+    end
+
+    return E
 end
 
-function feeding_level(params::Params, n, n_pp, n_other, t, encounter; kwargs...)
-    return encounter ./ (encounter .+ params.intake_max)
+function feeding_level(params::Params, n, n_pp; t, encounter)
+    encounter ./ (encounter .+ params.intake_max)
 end
 
-1 + 1
+function e_repro_and_growth(params::Params, n, n_pp; t, encounter, feeding_level)
+    (1.0 .- feeding_level) .* encounter .* params.species_params.alpha .- params.metab
+end
+
+n = params.initial_n;
+n_pp = params.initial_n_pp;
+effort = params.initial_effort;
+r = julia_rates(params, n, n_pp, effort = effort, t = 0)
