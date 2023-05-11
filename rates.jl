@@ -148,7 +148,7 @@ Calls other rate functions in sequence and collects the results in a dictionary.
 - `rdd` from `beverton_holt_rdd()`
 - `resource_mort` from `mizer_resource_mort()`
 """
-function julia_rates(params::Params, n, n_pp; effort, t = 0)
+function julia_rates(params::Params, n, n_pp; effort, t = 0.0)
     r = Dict{String, Any}()
 
     ## Growth ----
@@ -160,19 +160,16 @@ function julia_rates(params::Params, n, n_pp; effort, t = 0)
     # Calculate the energy available for reproduction and growth
     r["e"] = e_repro_and_growth(params, n, n_pp, encounter = r["encounter"],
                                 feeding_level = r["feeding_level"], t = t)
-    # # Calculate the energy for reproduction
-    # r["e_repro"] = juliaERepro(params, n, n_pp, e = r["e"], t = t, kwargs...)
-    # # Calculate the growth rate g_i(w)
-    # r["e_growth"] = juliaEGrowth(params, n, n_pp, e_repro = r["e_repro"],
-    #                              e = r["e"], t = t, kwargs...)
+    # Calculate the energy for reproduction
+    r["e_repro"] = e_repro(params, n, n_pp, e = r["e"], t = t)
+    # Calculate the growth rate g_i(w)
+    r["e_growth"] = e_growth(params, n, n_pp, e_repro = r["e_repro"], e = r["e"], t = t)
 
-    # ## Mortality ----
-    # # Calculate the predation rate
-    # r["pred_rate"] = juliaPredRate(params, n, n_pp, n_other,
-    #                                feeding_level = r["feeding_level"], t = t, kwargs...)
-    # # Calculate predation mortality on fish \mu_{p,i}(w)
-    # r["pred_mort"] = juliaPredMort(params, n, n_pp, n_other,
-    #                                pred_rate = r["pred_rate"], t = t, kwargs...)
+    ## Mortality ----
+    # Calculate the predation rate
+    r["pred_rate"] = pred_rate(params, n, n_pp, feeding_level = r["feeding_level"], t = t)
+    # Calculate predation mortality on fish \mu_{p,i}(w)
+    r["pred_mort"] = pred_mort(params, n, n_pp, pred_rate = r["pred_rate"], t = t)
     # # Calculate fishing mortality
     # r["f_mort"] = juliaFMort(params, n, n_pp, n_other, effort = effort, t = t,
     #                          e_growth = r["e_growth"], pred_mort = r["pred_mort"],
@@ -196,7 +193,7 @@ function julia_rates(params::Params, n, n_pp; effort, t = 0)
     return r
 end
 
-function encounter(params::Params, n, n_pp; t = 0)
+function encounter(params::Params, n, n_pp; t)
     E = zeros(size(n))
     num_sp, num_w = size(n)
     for i in 1:num_sp
@@ -226,6 +223,35 @@ end
 
 function e_repro_and_growth(params::Params, n, n_pp; t, encounter, feeding_level)
     (1.0 .- feeding_level) .* encounter .* params.species_params.alpha .- params.metab
+end
+
+function e_repro(params::Params, n, n_pp; t, e)
+    max.(e .* params.psi, 0)
+end
+
+function e_growth(params::Params, n, n_pp; t, e_repro, e)
+    max.(e .- e_repro, 0)
+end
+    
+function pred_rate(params::Params, n, n_pp; t, feeding_level)
+    num_sp, num_w = size(n)
+    pr = zeros(num_sp, length(n_pp))
+    for i in 1:num_sp
+        for wj in eachindex(n_pp)
+            for wi in 1:num_w
+                pr[i, wj] += params.pred_kernel[i, wi, wj] * (1 .- feeding_level[i, wi]) *
+                             params.search_vol[i, wi] * n[i, wi] * params.dw[wi]
+            end
+        end
+    end
+    return pr
+end
+
+function pred_mort(params::Params, n, n_pp; t, pred_rate)
+    num_sp, num_w = size(n)
+    num_w_pp = length(n_pp)
+    idx = (num_w_pp + 1 - num_w):num_w_pp
+    transpose(params.interaction) * pred_rate[:, idx]
 end
 
 n = params.initial_n;
