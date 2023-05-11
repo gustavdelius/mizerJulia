@@ -107,15 +107,6 @@ end
 import RCall: RClass, rcopytype
 rcopytype(::Type{RClass{:MizerParams}}, s::Ptr{S4Sxp}) = Params
 
-using RCall
-R"""
-library(mizer)
-params <- NS_params
-"""
-
-@rget params;
-typeof(params)
-
 """
     juliaRates(params, n, n_pp, n_other; t=0, effort, rates_fns, kwargs...)
 
@@ -148,52 +139,44 @@ Calls other rate functions in sequence and collects the results in a dictionary.
 - `rdd` from `beverton_holt_rdd()`
 - `resource_mort` from `mizer_resource_mort()`
 """
-function julia_rates(params::Params, n, n_pp; effort, t = 0.0)
+function julia_rates(params::Params, n, n_pp, effort)
     r = Dict{String, Any}()
 
     ## Growth ----
     # Calculate rate E_{e,i}(w) of encountered food
-    r["encounter"] = encounter(params, n, n_pp, t)
+    r["encounter"] = get_encounter(params, n, n_pp)
     # Calculate feeding level f_i(w)
-    r["feeding_level"] = feeding_level(params, n, n_pp,
-                                       encounter = r["encounter"], t = t)
+    r["feeding_level"] = get_feeding_level(params, r["encounter"])
     # Calculate the energy available for reproduction and growth
-    r["e"] = e_repro_and_growth(params, n, n_pp, encounter = r["encounter"],
-                                feeding_level = r["feeding_level"], t = t)
+    r["e"] = get_e_repro_and_growth(params, r["encounter"], r["feeding_level"])
     # Calculate the energy for reproduction
-    r["e_repro"] = e_repro(params, n, n_pp, e = r["e"], t = t)
+    r["e_repro"] = get_e_repro(params, r["e"])
     # Calculate the growth rate g_i(w)
-    r["e_growth"] = e_growth(params, n, n_pp, e_repro = r["e_repro"], e = r["e"], t = t)
+    r["e_growth"] = get_e_growth(r["e_repro"], r["e"])
 
     ## Mortality ----
     # Calculate the predation rate
-    r["pred_rate"] = pred_rate(params, n, n_pp, feeding_level = r["feeding_level"], t = t)
+    r["pred_rate"] = get_pred_rate(params, n, n_pp, r["feeding_level"])
     # Calculate predation mortality on fish \mu_{p,i}(w)
-    r["pred_mort"] = pred_mort(params, n, n_pp, pred_rate = r["pred_rate"], t = t)
-    # # Calculate fishing mortality
-    # r["f_mort"] = juliaFMort(params, n, n_pp, n_other, effort = effort, t = t,
-    #                          e_growth = r["e_growth"], pred_mort = r["pred_mort"],
-    #                          kwargs...)
-    # # Calculate total mortality \mu_i(w)
-    # r["mort"] = juliaMort(params, n, n_pp, n_other, f_mort = r["f_mort"],
-    #                       pred_mort = r["pred_mort"], t = t, kwargs...)
+    r["pred_mort"] = get_pred_mort(params, n, n_pp, r["pred_rate"])
+    # Calculate fishing mortality
+    r["f_mort"] = get_f_mort(params, effort)
+    # Calculate total mortality \mu_i(w)
+    r["mort"] = get_mort(params, r["f_mort"], r["pred_mort"])
 
-    # ## Reproduction ----
-    # # R_di
-    # r["rdi"] = juliaRDI(params, n, n_pp, n_other, e_growth = r["e_growth"],
-    #                     mort = r["mort"],
-    #                     e_repro = r["e_repro"], t = t, kwargs...)
-    # # R_dd
-    # r["rdd"] = juliaRDD(rdi = r["rdi"], species_params = params.species_params, kwargs...)
+    ## Reproduction ----
+    # R_di
+    r["rdi"] = get_rdi(params, n, r["e_repro"])
+    # R_dd
+    r["rdd"] = get_rdd(r["rdi"], params.species_params)
 
-    # ## Resource ----
-    # # Calculate mortality on the resource spectrum
-    # r["resource_mort"] = juliaResourceMort(params, n, n_pp, n_other,
-    #                                        pred_rate = r["pred_rate"], t = t, kwargs...)
+    ## Resource ----
+    # Calculate mortality on the resource spectrum
+    r["resource_mort"] = get_resource_mort(params, r["pred_rate"])
     return r
 end
 
-function encounter(params::Params, n, n_pp; t)
+function get_encounter(params::Params, n, n_pp)
     E = zeros(size(n))
     num_sp, num_w = size(n)
     for i in 1:num_sp
@@ -217,23 +200,23 @@ function encounter(params::Params, n, n_pp; t)
     return E
 end
 
-function feeding_level(params::Params, n, n_pp; t, encounter)
+function get_feeding_level(params::Params, encounter)
     encounter ./ (encounter .+ params.intake_max)
 end
 
-function e_repro_and_growth(params::Params, n, n_pp; t, encounter, feeding_level)
+function get_e_repro_and_growth(params::Params, encounter, feeding_level)
     (1.0 .- feeding_level) .* encounter .* params.species_params.alpha .- params.metab
 end
 
-function e_repro(params::Params, n, n_pp; t, e)
+function get_e_repro(params::Params, e)
     max.(e .* params.psi, 0)
 end
 
-function e_growth(params::Params, n, n_pp; t, e_repro, e)
+function get_e_growth(e_repro, e)
     max.(e .- e_repro, 0)
 end
-    
-function pred_rate(params::Params, n, n_pp; t, feeding_level)
+
+function get_pred_rate(params::Params, n, n_pp, feeding_level)
     num_sp, num_w = size(n)
     pr = zeros(num_sp, length(n_pp))
     for i in 1:num_sp
@@ -247,14 +230,41 @@ function pred_rate(params::Params, n, n_pp; t, feeding_level)
     return pr
 end
 
-function pred_mort(params::Params, n, n_pp; t, pred_rate)
+function get_pred_mort(params::Params, n, n_pp, pred_rate)
     num_sp, num_w = size(n)
     num_w_pp = length(n_pp)
     idx = (num_w_pp + 1 - num_w):num_w_pp
     transpose(params.interaction) * pred_rate[:, idx]
 end
 
-n = params.initial_n;
-n_pp = params.initial_n_pp;
-effort = params.initial_effort;
-r = julia_rates(params, n, n_pp, effort = effort, t = 0)
+function get_f_mort(params::Params, effort)
+    num_sp, num_w = size(params.initial_n)
+    num_gears = length(effort)
+    f = zeros(num_sp, num_w)
+    for wi in 1:num_w
+        for i in 1:num_sp
+            for g in 1:num_gears
+                f[i, wi] += params.selectivity[g, i, wi] * params.catchability[g, i] *
+                            effort[g]
+            end
+        end
+    end
+    return f
+end
+
+function get_mort(params::Params, f_mort, pred_mort)
+    f_mort + pred_mort + params.mu_b
+end
+
+function get_resource_mort(params::Params, pred_rate)
+    (params.species_params.interaction_resource' * pred_rate)'
+end
+
+function get_rdi(params::Params, n, e_repro)
+    e_repro_pop = (e_repro .* n) * params.dw
+    0.5 * (e_repro_pop .* params.species_params.erepro) ./ params.w[params.w_min_idx]
+end
+
+function get_rdd(rdi, species_params)
+    rdi ./ (1 .+ rdi ./ species_params.R_max)
+end
