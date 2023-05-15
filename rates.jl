@@ -1,5 +1,6 @@
 using LoopVectorization
 using Tullio
+using LinearAlgebra
 
 struct Rates
     encounter::Matrix{Float64}
@@ -36,13 +37,13 @@ function get_rates(params::Params, n, n_pp, effort)
     get_rates!(r, params::Params, n, n_pp, effort)
 end
 
-function get_rates!(r, params::Params, n, n_pp, effort)
+function get_rates!(r::Rates, params::Params, n, n_pp, effort)
 
     ## Growth ----
     # Calculate rate E_{e,i}(w) of encountered food
-    # r.pred_rate is only passed so that the function has a preallocated
-    # array of the correct size to hold the interacting prey abundance
-    get_encounter!(r.encounter, r.pred_rate, params, n, n_pp)
+    # r.pred_rate and r.e only passed so that the function has preallocated
+    # arrays to hold temporary results
+    get_encounter!(r.encounter, r.pred_rate, r.e, params, n, n_pp)
     # Calculate feeding level f_i(w)
     get_feeding_level!(r.feeding_level, params, r.encounter)
     # Calculate the energy available for reproduction and growth
@@ -80,12 +81,14 @@ function padded_add!(B, A)
     return B
 end
 
-function prey!(P, interaction, n, interaction_resource, n_pp)
-    P .= padded_add!(interaction_resource * n_pp', interaction * n)
+function prey!(P, Q, interaction, n, interaction_resource, n_pp)
+    mul!(P, interaction_resource, n_pp')
+    mul!(Q, interaction, n)
+    P .= padded_add!(P, Q)
 end
 
-function get_encounter!(E, P, params, n, n_pp)
-    P = prey!(P, params.interaction, n, params.species_params.interaction_resource, n_pp)
+function get_encounter!(E, P, Q, params, n, n_pp)
+    P = prey!(P, Q, params.interaction, n, params.species_params.interaction_resource, n_pp)
     K = params.encounter_kernel
     @tullio E[i, w] = P[i, wp] * K[i, w, wp]
 end
@@ -115,7 +118,7 @@ function get_pred_mort!(pred_mort, params::Params, n, n_pp, pred_rate)
     num_sp, num_w = size(n)
     num_w_pp = length(n_pp)
     idx = (num_w_pp + 1 - num_w):num_w_pp
-    pred_mort .= transpose(params.interaction) * pred_rate[:, idx]
+    mul!(pred_mort, transpose(params.interaction), @view pred_rate[:, idx])
 end
 
 function get_f_mort!(f_mort, params::Params, effort)
@@ -128,7 +131,7 @@ function get_mort!(mort, params::Params, f_mort, pred_mort)
 end
 
 function get_rdi!(rdi, params::Params, n, e_repro)
-    rdi .= 0.5 * (((e_repro .* n) * params.dw) .* params.species_params.erepro) ./
+    rdi .= 0.5 .* (((e_repro .* n) * params.dw) .* params.species_params.erepro) ./
            params.w[params.w_min_idx]
 end
 
@@ -137,5 +140,6 @@ function get_rdd!(rdd, rdi, R_max)
 end
 
 function get_resource_mort!(resource_mort, params::Params, pred_rate)
+    # @tullio resource_mort[w] = params.species_params.interaction_resource[i] * pred_rate[i, w]
     resource_mort .= (params.species_params.interaction_resource' * pred_rate)'
 end

@@ -27,3 +27,6 @@ waldo::compare(r$feeding_level, r_old$feeding_level)
 
 microbenchmark(getRates(NS_params), getRates(params_slow), getRates(params))
 
+microbenchmark(project(NS_params))
+
+microbenchmark(project_simple(NS_params, steps = 1000))
