@@ -15,7 +15,7 @@ n_pp = copy(params.initial_n_pp);
 effort = copy(params.initial_effort);
 r = get_rates(params, n, n_pp, effort);
 
-import BenchmarkTools: @benchmark, @btime
+import BenchmarkTools: @benc]hmark, @btime
 @btime get_rates(params, n, n_pp, effort);
 # 277.203 μs (35 allocations: 140.28 KiB)
 @btime get_rates!(r, params, n, n_pp, effort);
@@ -31,6 +31,37 @@ isapprox(r.pred_mort, r_mizer[:pred_mort])
 isapprox(r.mort, r_mizer[:mort])
 isapprox(r.rdd, r_mizer[:rdd])
 isapprox(r.resource_mort, r_mizer[:resource_mort])
+
+# Benchmark individual rate functions
+get_encounter!(r.encounter, r.pred_rate, r.e, params, n, n_pp)
+# Calculate feeding level f_i(w)
+get_feeding_level!(r.feeding_level, params, r.encounter)
+# Calculate the energy available for reproduction and growth
+get_e_repro_and_growth!(r.e, params, r.encounter, r.feeding_level)
+# Calculate the energy for reproduction
+get_e_repro!(r.e_repro, params, r.e)
+# Calculate the growth rate g_i(w)
+get_e_growth!(r.e_growth, r.e_repro, r.e)
+
+## Mortality ----
+# Calculate the predation rate
+get_pred_rate!(r.pred_rate, n, params.pred_rate_kernel, r.feeding_level)
+# Calculate predation mortality on fish \mu_{p,i}(w)
+get_pred_mort!(r.pred_mort, params, n, n_pp, r.pred_rate)
+# Calculate fishing mortality
+get_f_mort!(r.f_mort, params, effort)
+# Calculate total mortality \mu_i(w)
+get_mort!(r.mort, params, r.f_mort, r.pred_mort)
+
+## Reproduction ----
+# R_di
+get_rdi!(r.rdi, params, n, r.e_repro)
+# R_dd,
+get_rdd!(r.rdd, r.rdi, params.species_params.R_max)
+
+## Resource ----
+# Calculate mortality on the resource spectrum
+get_resource_mort!(r.resource_mort, params, r.pred_rate)
 
 # Test project
 

@@ -1,7 +1,3 @@
-using LoopVectorization
-using Tullio
-using LinearAlgebra
-
 struct Rates
     encounter::Matrix{Float64}
     feeding_level::Matrix{Float64}
@@ -29,7 +25,7 @@ function allocate_rates(n, n_pp)
           similar(n), # mort
           zeros(size(n, 1)), # rdi
           zeros(size(n, 1)), # rdd
-          similar(n_pp))
+          similar(n_pp)) # resource_mort
 end
 
 function get_rates(params::Params, n, n_pp, effort)

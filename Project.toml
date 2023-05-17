@@ -1,0 +1,12 @@
+name = "Mizer"
+uuid = "5efb662b-1bc7-4f04-9e1e-877593ac4acf"
+authors = ["Gustav Delius"]
+version = "0.1.0"
+
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
+Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
