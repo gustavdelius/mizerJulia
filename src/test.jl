@@ -20,9 +20,9 @@ r = get_rates(params, n, n_pp, effort);
 
 import BenchmarkTools: @benchmark, @btime
 @btime get_rates(params, n, n_pp, effort);
-# 277.203 μs (35 allocations: 140.28 KiB)
+#  202.656 μs (30 allocations: 100.06 KiB)
 @btime get_rates!(r, params, n, n_pp, effort);
-# 260.167 μs (20 allocations: 31.14 KiB)
+# 182.803 μs (0 allocations: 0 bytes) in office
 # 379.200 μs (16 allocations: 432 bytes) on slow notebook
 
 r = get_rates(params, n, n_pp, effort);
@@ -71,11 +71,8 @@ isapprox(r.resource_mort, r_mizer[:resource_mort])
 # Calculate mortality on the resource spectrum
 @btime get_resource_mort!(r.resource_mort, params, r.pred_rate)
 
-n_pp = copy(params.initial_n_pp)
-temp1 = similar(n_pp)
-temp2 = similar(n_pp)
-
-@btime resource_dynamics!(n_pp, temp1, temp2, params, r, 0.1);
+@btime resource_dynamics!(n_pp, params, r, 0.1);
+# 2.328 μs (0 allocations: 0 bytes)
 
 # Test project
 
@@ -87,7 +84,6 @@ n_pp_final <- finalNResource(sim)
 @rget n_final;
 @rget n_pp_final;
 
-include("project.jl")
 effort = params.initial_effort;
 n, n_pp = project(params, effort = effort);
 
@@ -95,28 +91,11 @@ isapprox(n, n_final)
 isapprox(n_pp, n_pp_final)
 
 import BenchmarkTools: @btime
-@btime project(params, effort = $effort);
+@btime project(params, effort = $effort, t_max = 100);
+# 295.380 ms (15022 allocations: 746.17 KiB)
 
 using Profile
-using PProf
-
-# Collect an allocation profile
-Profile.Allocs.clear()
-Profile.Allocs.@profile project(params, effort = effort, num_steps = 10000);
-
-# Export pprof allocation profile and open interactive profiling web interface.
-PProf.Allocs.pprof()
-
-# Collect a profile
-Profile.clear()
-@profile project(params, effort = effort);
-
-# Export pprof profile and open interactive profiling web interface.
-pprof()
-
 import ProfileView: @profview
-@profview project(params, effort = effort);
-using Profile
-@profile project(params, effort = effort);
-import Juno
-Juno.profiler()
+@profview project(params, effort = effort, t_max = 1);
+@profview project(params, effort = effort, t_max = 1000);
+
