@@ -42,6 +42,10 @@ struct Params
     # linecolour::Array{String,1
     # linetype::Array{String,1
     # ft_mask::Array{Float64,2}
+    alpha::Vector{Float64}
+    R_max::Vector{Float64}
+    erepro::Vector{Float64}
+    interaction_resource::Vector{Float64}
 end
 
 function encounter_kernel(pred_kernel, w_full, dw_full, search_vol)
@@ -72,6 +76,7 @@ function rcopy(::Type{Params}, robj::Ptr{S4Sxp})
     dw_full = rcopy(Array{Float64, 1}, robj[:dw_full])
     search_vol = rcopy(Array{Float64, 2}, robj[:search_vol])
     pred_kernel = rcopy(Array{Float64, 3}, pred_kernel)
+    species_params = rcopy(DataFrame, robj[:species_params])
     Params(
            # rcopy(Dict{Any,Any}, robj[:metadata]),
            # rcopy(Any, robj[:mizer_version]),
@@ -108,16 +113,20 @@ function rcopy(::Type{Params}, robj::Ptr{S4Sxp})
            # rcopy(Array{Float64,1}, robj[:sc]),
            rcopy(Array{Float64, 1}, robj[:initial_n_pp]),
            # rcopy(Dict{String,Any}, robj[:initial_n_other]),
-           rcopy(DataFrame, robj[:species_params]),
+           species_params,
            rcopy(Array{Float64, 2}, robj[:interaction]),
            rcopy(DataFrame, robj[:gear_params]),
            rcopy(Array{Float64, 3}, robj[:selectivity]),
            rcopy(Array{Float64, 2}, robj[:catchability]),
-           rcopy(Array{Float64, 1}, robj[:initial_effort])
+           rcopy(Array{Float64, 1}, robj[:initial_effort]),
            # rcopy(Array{Float64,1}, robj[:A]),
            # rcopy(String, robj[:linecolour]),
            # rcopy(String, robj[:linetype]),
            # rcopy(Array{Float64,3}, robj[:ft_mask])
+           species_params.alpha,
+           species_params.R_max,
+           species_params.erepro,
+           species_params.interaction_resource,
            )
 end
 

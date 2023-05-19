@@ -63,7 +63,7 @@ function get_rates!(r::Rates, params::Params, n, n_pp, effort)
     # R_di
     get_rdi!(r.rdi, params, n, r.e_repro)
     # R_dd,
-    get_rdd!(r.rdd, r.rdi, params.species_params.R_max)
+    get_rdd!(r.rdd, r.rdi, params.R_max)
 
     ## Resource ----
     # Calculate mortality on the resource spectrum
@@ -85,7 +85,7 @@ function prey!(P, Q, interaction, n, interaction_resource, n_pp)
 end
 
 function get_encounter!(E, P, Q, params, n, n_pp)
-    prey!(P, Q, params.interaction, n, params.species_params.interaction_resource, n_pp)
+    prey!(P, Q, params.interaction, n, params.interaction_resource, n_pp)
     K = params.encounter_kernel
     @tullio E[i, w] = P[i, wp] * K[i, w, wp]
     nothing
@@ -97,7 +97,7 @@ function get_one_minus_feeding_level!(one_minus_feeding_level, params::Params, e
 end
 
 function get_e_repro_and_growth!(e, params::Params, encounter, one_minus_feeding_level)
-    e .= one_minus_feeding_level .* encounter .* params.species_params.alpha .- params.metab
+    e .= one_minus_feeding_level .* encounter .* params.alpha .- params.metab
     nothing
 end
 
@@ -138,7 +138,7 @@ end
 
 function get_rdi!(rdi, params::Params, n, e_repro)
     @tullio rdi[i] = 0.5 * e_repro[i, w] * n[i, w] * params.dw[w] * 
-                     params.species_params.erepro[i] / params.w[params.w_min_idx[i]]
+                     params.erepro[i] / params.w[params.w_min_idx[i]]
     nothing
 end
 
@@ -148,6 +148,6 @@ function get_rdd!(rdd, rdi, R_max)
 end
 
 function get_resource_mort!(resource_mort, params::Params, pred_rate)
-    @tullio resource_mort[w] = params.species_params.interaction_resource[i] * pred_rate[i, w]
+    @tullio resource_mort[w] = params.interaction_resource[i] * pred_rate[i, w]
     nothing
 end
