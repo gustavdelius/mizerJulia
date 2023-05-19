@@ -1,6 +1,14 @@
-function project(params::Params; effort, num_steps = 1000, dt = 0.1)
+function project(params::Params; effort, t_max = 100, t_save = 1, dt = 0.1)
     n = copy(params.initial_n)
     n_pp = copy(params.initial_n_pp)
+    # TODO: Implement saving of results in a Sim object and move allocations from
+    # project_simple to here.
+    num_steps = Int(t_max / dt)
+    project_simple(params, n = n, n_pp = n_pp, effort = effort, 
+                   num_steps = num_steps, dt = dt)
+end
+
+function project_simple(params::Params; n, n_pp, effort, num_steps = 1000, dt = 0.1)
     b = similar(n)
     temp1 = similar(n_pp)
     temp2 = similar(n_pp)
@@ -29,6 +37,7 @@ end
 function resource_dynamics!(n_pp::Vector, temp1, temp2, params::Params, r::Rates, dt::Float64)
     temp1 .= r.resource_mort .+ params.rr_pp
     temp2 .= params.rr_pp .* params.cc_pp ./ temp1
-    temp2 .= temp2 + (n_pp .- temp2) .* exp.(-temp1 .* dt)
-    n_pp[isfinite.(temp2)] .= temp2[isfinite.(temp2)]
+    temp2 .= temp2 .+ (n_pp .- temp2) .* exp.(-temp1 .* dt)
+    @views n_pp[isfinite.(temp2)] = temp2[isfinite.(temp2)]
+    nothing
 end
