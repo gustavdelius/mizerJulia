@@ -20,10 +20,9 @@ r = get_rates(params, n, n_pp, effort);
 
 import BenchmarkTools: @benchmark, @btime
 @btime get_rates(params, n, n_pp, effort);
-#  202.656 μs (30 allocations: 100.06 KiB)
+# 199.877 μs (30 allocations: 100.06 KiB) in office
 @btime get_rates!(r, params, n, n_pp, effort);
-# 182.803 μs (0 allocations: 0 bytes) in office
-# 379.200 μs (16 allocations: 432 bytes) on slow notebook
+# 188.445 μs (16 allocations: 432 bytes) in office
 
 r = get_rates(params, n, n_pp, effort);
 r_mizer = @rget rates_mizer;
@@ -38,38 +37,42 @@ isapprox(r.resource_mort, r_mizer[:resource_mort])
 
 # Benchmark individual rate functions
 @btime get_encounter!(r.encounter, r.pred_rate, r.e, params, n, n_pp);
-# 89.700 μs (3 allocations: 336 bytes)
+# 71.250 μs (0 allocations: 0 bytes)
 
-@btime get_feeding_level!(r.one_minus_feeding_level, params, r.encounter);
-# 2.000 μs (2 allocations: 224 bytes)
+@btime get_one_minus_feeding_level!(r.one_minus_feeding_level, params, r.encounter);
+# 2.648 μs (0 allocations: 0 bytes)
 
 @btime get_e_repro_and_growth!(r.e, params, r.encounter, r.one_minus_feeding_level);
-# 4.157 μs (8 allocations: 560 bytes)
+# 2.992 μs (5 allocations: 192 bytes)
 
 @btime get_e_repro!(r.e_repro, params, r.e);
-# 2.011 μs (2 allocations: 224 bytes)
+# 1.510 μs (0 allocations: 0 bytes)
 
 @btime get_e_growth!(r.e_growth, r.e_repro, r.e);
-# 2.067 μs (3 allocations: 336 bytes)
+# 1.525 μs (0 allocations: 0 bytes)
 
 @btime get_pred_rate!(r.pred_rate, n, params.pred_rate_kernel, r.one_minus_feeding_level);
-# 87.700 μs (3 allocations: 432 bytes)
+# 66.490 μs (1 allocation: 208 bytes)
 
 @btime get_pred_mort!(r.pred_mort, params, n, n_pp, r.pred_rate);
-# Calculate fishing mortality
+# 1.942 μs (0 allocations: 0 bytes)
+
 @btime get_f_mort!(r.f_mort, params, effort)
-# Calculate total mortality \mu_i(w)
+# 1.555 μs (0 allocations: 0 bytes)
+
 @btime get_mort!(r.mort, params, r.f_mort, r.pred_mort);
+# 1.393 μs (0 allocations: 0 bytes)
 
 ## Reproduction ----
-# R_di
 @btime get_rdi!(r.rdi, params, n, r.e_repro)
-# R_dd,
+# 3.848 μs (5 allocations: 128 bytes)
+
 @btime get_rdd!(r.rdd, r.rdi, params.species_params.R_max)
+# 13.702 ns (1 allocation: 208 bytes)
 
 ## Resource ----
-# Calculate mortality on the resource spectrum
 @btime get_resource_mort!(r.resource_mort, params, r.pred_rate)
+# 1.402 μs (6 allocations: 112 bytes)
 
 @btime resource_dynamics!(n_pp, params, r, 0.1);
 # 2.328 μs (0 allocations: 0 bytes)
@@ -92,7 +95,7 @@ isapprox(n_pp, n_pp_final)
 
 import BenchmarkTools: @btime
 @btime project(params, effort = $effort, t_max = 100);
-# 295.380 ms (15022 allocations: 746.17 KiB)
+# 340.277 ms (20022 allocations: 933.67 KiB)
 
 using Profile
 import ProfileView: @profview
