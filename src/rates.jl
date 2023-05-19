@@ -1,4 +1,4 @@
-struct Rates
+mutable struct Rates
     encounter::Matrix{Float64}
     one_minus_feeding_level::Matrix{Float64}
     e::Matrix{Float64}
