@@ -92,7 +92,7 @@ isapprox(n_pp, n_pp_final)
 
 import BenchmarkTools: @btime
 @btime project(params, effort = $effort, t_max = 100);
-# 295.380 ms (15022 allocations: 746.17 KiB)
+# 266.149 ms (4022 allocations: 511.80 KiB) in office
 
 using Profile
 import ProfileView: @profview
