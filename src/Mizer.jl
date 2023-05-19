@@ -1,6 +1,7 @@
 module Mizer
 
-export project
+export project, get_rates, get_rates!
+
 using Dates, DataFrames, RCall, LoopVectorization, Tullio, LinearAlgebra
 include("params.jl")
 include("rates.jl")
