@@ -24,18 +24,9 @@ import BenchmarkTools: @benchmark, @btime
 @btime get_rates!(r, params, n, n_pp, effort);
 # 204.844 μs (0 allocations: 0 bytes) in office
 
-r = get_rates(params, n, n_pp, effort);
-r_mizer = @rget rates_mizer;
-
-isapprox(r.encounter, r_mizer[:encounter])
-isapprox(r.one_minus_feeding_level, 1.0 .- r_mizer[:feeding_level])
-isapprox(r.e_growth, r_mizer[:e_growth])
-isapprox(r.pred_mort, r_mizer[:pred_mort])
-isapprox(r.mort, r_mizer[:mort])
-isapprox(r.rdd, r_mizer[:rdd])
-isapprox(r.resource_mort, r_mizer[:resource_mort])
 
 # Benchmark individual rate functions
+
 @btime get_encounter!(r.encounter, r.pred_rate, r.e, params, n, n_pp);
 # 70.988 μs (0 allocations: 0 bytes)
 
