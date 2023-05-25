@@ -1,18 +1,24 @@
 function project(params::Params; effort, t_max = 100, t_save = 1, dt = 0.1)
     n = copy(params.initial_n)
     n_pp = copy(params.initial_n_pp)
-    # TODO: Implement saving of results in a Sim object and move allocations from
-    # project_simple to here.
-    num_steps = Int(t_max / dt)
-    project_simple(params, n = n, n_pp = n_pp, effort = effort, 
-                   num_steps = num_steps, dt = dt)
-end
-
-function project_simple(params::Params; n, n_pp, effort, num_steps = 1000, dt = 0.1)
     b = similar(n)
     r = allocate_rates(n, n_pp)
     num_sp, num_w = size(n)
     w_min_idx_array_ref = (params.w_min_idx .- 1) * num_sp + (1:num_sp)
+    num_t = Int(t_max / t_save)
+    sim = allocate_sim(params, n, n_pp, num_t)
+    for t in 1:num_t
+        n, n_pp = project_simple(params, n, n_pp, effort, b, r, w_min_idx_array_ref,
+                                 num_steps = Int(t_save / dt), dt = dt)
+        @views sim.n[:, :, t+1] = copy(n)
+        @views sim.n_pp[:, t+1] = copy(n_pp)
+    end
+end
+
+function project_simple(params::Params, n, n_pp, effort, b, r, w_min_idx_array_ref;
+                        num_steps = 1000, dt = 0.1)
+
+    num_sp, num_w = size(n)
     n_egg = view(n, w_min_idx_array_ref)
     t = 0.0
     for i in 1:num_steps
