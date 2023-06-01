@@ -1,4 +1,10 @@
-function project(params::Params; effort, t_max = 100, t_save = 1, dt = 0.1)
+function project(params::Params, effort::Number, t_max = 100, t_save = 1, dt = 0.1)
+    num_gear = size(params.catchability, 1)
+    effort_vec = fill(effort, num_gear)
+    return project(params, effort_vec, t_max, t_save, dt)
+end
+
+function project(params::Params, effort::Vector, t_max = 100, t_save = 1, dt = 0.1)
     n = copy(params.initial_n)
     n_pp = copy(params.initial_n_pp)
     b = similar(n)
