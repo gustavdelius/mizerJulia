@@ -12,9 +12,8 @@ using Test
     rates_mizer <- getRates(params)
     """
     @rget params
-    r_mizer = @rget rates_mizer
     @test typeof(params) == Mizer.Params
-    @test typeof(r_mizer) == Mizer.Rates
+    r_mizer = @rget rates_mizer
 
     n = params.initial_n
     n_pp = params.initial_n_pp
@@ -44,8 +43,11 @@ end
     @rget n_pp_final
 
     effort = params.initial_effort
-    n, n_pp = project(params, effort = effort)
+    sim = project(params, effort = effort)
+    @test typeof(sim) == Mizer.Sim
+    @test sim.n[:, :, 1] == params.initial_n
+    @test sim.n_pp[:, 1] == params.initial_n_pp
+    @test isapprox(sim.n[:, :, end], n_final)
+    @test isapprox(sim.n_pp[:, end], n_pp_final)
 
-    @test isapprox(n, n_final)
-    @test isapprox(n_pp, n_pp_final)
 end

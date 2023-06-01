@@ -13,6 +13,7 @@ function project(params::Params; effort, t_max = 100, t_save = 1, dt = 0.1)
         @views sim.n[:, :, t+1] = copy(n)
         @views sim.n_pp[:, t+1] = copy(n_pp)
     end
+    sim
 end
 
 function project_simple(params::Params, n, n_pp, effort, b, r, w_min_idx_array_ref;

@@ -1,7 +1,7 @@
 struct Sim
-    params::params
-    n::Matrix{Float64}
-    n_pp::Vector{Float64}
+    params::Params
+    n::Array{Float64, 3}
+    n_pp::Matrix{Float64}
     # TODO: Allow effort to be a function of time
     # effort::Matrix{Float64}
 end
