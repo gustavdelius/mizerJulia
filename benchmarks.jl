@@ -1,7 +1,5 @@
 using Dates, DataFrames, RCall, LoopVectorization, Tullio, LinearAlgebra
-include("params.jl")
-include("rates.jl")
-include("project.jl")
+using Mizer
 
 
 R"""
