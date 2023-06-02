@@ -1,27 +1,33 @@
+# speed tests for get_rates() and project()
+
 using Dates, DataFrames, RCall, LoopVectorization, Tullio, LinearAlgebra
 using Mizer
+import BenchmarkTools: @benchmark, @btime
+using Profile
+import ProfileView: @profview
 
-
-R"""
-library(mizer)
-params <- NS_params
-params <- setPredKernel(params, pred_kernel = getPredKernel(params))
-rates_mizer <- getRates(params)
-""";
-@rget params;
-typeof(params)
+params = NS_params;
 
 n = copy(params.initial_n);
 n_pp = copy(params.initial_n_pp);
 effort = copy(params.initial_effort);
 r = get_rates(params, n, n_pp, effort);
 
-import BenchmarkTools: @benchmark, @btime
-@btime get_rates(params, n, n_pp, effort);
-# 213.398 μs (14 allocations: 99.64 KiB) in office
-@btime get_rates!(r, params, n, n_pp, effort);
-# 204.844 μs (0 allocations: 0 bytes) in office
+# Benchmark get_rates()
 
+@btime get_rates(params, n, n_pp, effort);
+# 162.759 μs (14 allocations: 99.64 KiB) in office
+
+@btime get_rates!(r, params, n, n_pp, effort);
+# 157.510 μs (0 allocations: 0 bytes) in office
+
+function profile_get_rates(rep = 1000)
+    for i in 1:rep
+        get_rates!(r, params, n, n_pp, effort);
+    end
+end
+profile_get_rates(1000);
+@profview profile_get_rates(1000);
 
 # Benchmark individual rate functions
 
