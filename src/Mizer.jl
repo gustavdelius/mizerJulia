@@ -3,7 +3,7 @@ module Mizer
 # Export Types
 export Params, Rates, Sim
 # Export functions
-export project, get_rates, get_rates!
+export project, get_rates, get_rates!, get_encounter!, get_mort!
 # Export constants
 export NS_params
 

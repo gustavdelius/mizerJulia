@@ -1,5 +1,17 @@
 using Enzyme, Random
 
+# Example from autodiff documentation
+a = 4.2
+bb = [2.2, 3.3];
+∂f_∂bb = zero(bb);
+c = 55;
+d = 9;
+
+f(a, bb, c, d) = a * √(bb[1]^2 + bb[2]^2) + c^2 * d^2
+∂f_∂a, _, _, ∂f_∂d = autodiff(Reverse, f, Active(a), Duplicated(bb, ∂f_∂bb), c,
+                              Active(d))[1]
+∂f_∂bb
+
 # Example from "Implementing pullbacks" https://enzyme.mit.edu/julia/stable/pullbacks/
 
 function mymul!(R, A, B)
@@ -37,6 +49,7 @@ R ≈ A * B &&
 
 using BenchmarkTools
 @btime Enzyme.autodiff(Reverse, mymul!, Const, Duplicated(R, ∂z_∂R), Duplicated(A, ∂z_∂A), Duplicated(B, ∂z_∂B))
+
 
 # Enzyme for adjoint tutorial: Stommel three-box ocean model
 # from https://enzyme.mit.edu/julia/stable/generated/box/
@@ -273,18 +286,42 @@ autodiff(Reverse,
 
 @show dstate_now
 
-# Calculate rate E_{e,i}(w) of encountered food
-# r.pred_rate and r.e only passed so that the function has preallocated
-# arrays to hold temporary results
-# get_encounter!(r.encounter, r.pred_rate, r.e, params, n, n_pp)
+# Differentiating mizer
 using Mizer
-n = NS_params.initial_n
-n_pp = NS_params.initial_n_pp
-E = similar(n)
-P = zeros(size(n, 1), length(n_pp))
-Q = similar(n)
-Enzyme.autodiff(Reverse, get_encouter!, Const, Duplicated(E, ∂z_∂E), Duplicated(A, ∂z_∂A),
-                Duplicated(B, ∂z_∂B))
+params = NS_params;
+n = params.initial_n;
+∂z_∂n = zero(n);
+n_pp = params.initial_n_pp;
+∂z_∂n_pp = zero(n_pp);
+E = similar(n);
+∂z_∂E = ones(size(E));
+P = zeros(size(n, 1), length(n_pp));
+Q = similar(n);
+get_encounter!(E, P, Q, params, n, n_pp)
+
+Enzyme.autodiff(Reverse, get_encounter!, Const, 
+                Duplicated(E, ∂z_∂E), Const(P), Const(Q), Const(params),
+                Duplicated(n, ∂z_∂n), Const(n_pp))
+
+
+Mizer.padded_add!(P, Q)
+
+∂z_∂P = ones(size(P));
+∂z_∂Q = zero(Q);
+autodiff(Reverse, Mizer.padded_add!, Const, Duplicated(P, ∂z_∂P), Duplicated(Q, ∂z_∂Q))
+∂z_∂Q
+
+autodiff(Reverse, Mizer.prey!, Const, Duplicated(P, ∂z_∂P), Const(Q), 
+         Const(params.interaction), Duplicated(n, ∂z_∂n), 
+         Const(params.interaction_resource), Const(n_pp))
+∂z_∂n
+
+using LinearAlgebra
+∂z_∂P = ones(size(P));
+∂z_∂n_pp = zero(n_pp);
+autodiff(Reverse, mul!, Const, Duplicated(P, ∂z_∂P), Const(params.interaction_resource), 
+         Duplicated(n_pp, ∂z_∂n_pp))
+∂z_∂n_pp
 
 using FiniteDiff
 
