@@ -288,7 +288,7 @@ autodiff(Reverse,
 
 # Differentiating mizer
 using Mizer
-params = NS_params;
+params = small_params;
 n = params.initial_n;
 ∂z_∂n = zero(n);
 n_pp = params.initial_n_pp;
@@ -297,31 +297,63 @@ E = similar(n);
 ∂z_∂E = ones(size(E));
 P = zeros(size(n, 1), length(n_pp));
 Q = similar(n);
+∂z_∂P = zero(P);
+∂z_∂Q = zero(Q);
 get_encounter!(E, P, Q, params, n, n_pp)
 
 Enzyme.autodiff(Reverse, get_encounter!, Const, 
-                Duplicated(E, ∂z_∂E), Const(P), Const(Q), Const(params),
+                Duplicated(E, ∂z_∂E), Duplicated(P, ∂z_∂P),
+                Duplicated(Q, ∂z_∂Q), Const(params),
                 Duplicated(n, ∂z_∂n), Const(n_pp))
 
 
-Mizer.padded_add!(P, Q)
+function get_encounter_loop!(E, P, Q, params, n, n_pp)
+    prey!(P, Q, params.interaction, n, params.interaction_resource, n_pp)
+    K = params.encounter_kernel
+    # @tullio E[i, w] = P[i, wp] * K[i, w, wp]
+    for i in 1:size(E, 1)
+        for w in 1:size(E, 2)
+            E[i, w] = sum(P[i, wp] * K[i, w, wp] for wp in 1:size(E, 3))
+        end
+    end
+    nothing
+end
+Mizer.get_encounter_loop!(E, P, Q, params, n, n_pp)
 
+Enzyme.autodiff(Reverse, Mizer.get_encounter_loop!, Const,
+                Duplicated(E, ∂z_∂E), Duplicated(P, ∂z_∂P),
+                Duplicated(Q, ∂z_∂Q), Const(params),
+                Duplicated(n, ∂z_∂n), Const(n_pp))
+
+Mizer.padded_add!(P, Q)
+P
+
+P = zeros(size(n, 1), length(n_pp));
 ∂z_∂P = ones(size(P));
 ∂z_∂Q = zero(Q);
 autodiff(Reverse, Mizer.padded_add!, Const, Duplicated(P, ∂z_∂P), Duplicated(Q, ∂z_∂Q))
 ∂z_∂Q
 
-autodiff(Reverse, Mizer.prey!, Const, Duplicated(P, ∂z_∂P), Const(Q), 
+P = zeros(size(n, 1), length(n_pp));
+∂z_∂P = ones(size(P));
+∂z_∂Q = zero(Q);
+∂z_∂n = zero(n);
+autodiff(Reverse, Mizer.prey!, Const, Duplicated(P, ∂z_∂P), 
+         Duplicated(Q, ∂z_∂Q),
          Const(params.interaction), Duplicated(n, ∂z_∂n), 
          Const(params.interaction_resource), Const(n_pp))
 ∂z_∂n
+∂z_∂Q
 
 using LinearAlgebra
+P = zeros(size(n, 1), length(n_pp));
 ∂z_∂P = ones(size(P));
-∂z_∂n_pp = zero(n_pp);
+n_ppp = n_pp'
+∂z_∂n_ppp = zero(n_ppp);
+
 autodiff(Reverse, mul!, Const, Duplicated(P, ∂z_∂P), Const(params.interaction_resource), 
-         Duplicated(n_pp, ∂z_∂n_pp))
-∂z_∂n_pp
+         Duplicated(n_ppp, ∂z_∂n_ppp))
+∂z_∂n_ppp
 
 using FiniteDiff
 
