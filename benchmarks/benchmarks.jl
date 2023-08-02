@@ -17,9 +17,11 @@ r = get_rates(params, n, n_pp, effort);
 
 @btime get_rates(params, n, n_pp, effort);
 # 162.759 μs (14 allocations: 99.64 KiB) in office
+# 1.167ms when using loops
 
 @btime get_rates!(r, params, n, n_pp, effort);
 # 157.510 μs (0 allocations: 0 bytes) in office
+# 1.155ms when using loops
 
 function profile_get_rates(rep = 1000)
     for i in 1:rep
