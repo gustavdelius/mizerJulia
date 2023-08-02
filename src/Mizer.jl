@@ -5,7 +5,7 @@ export Params, Rates, Sim
 # Export functions
 export project, get_rates, get_rates!, get_encounter!, get_mort!
 # Export constants
-export NS_params
+export NS_params, small_params
 
 using Dates, DataFrames, RCall, LoopVectorization, Tullio, LinearAlgebra, Serialization
 include("params.jl")

@@ -87,7 +87,13 @@ end
 function get_encounter!(E, P, Q, params, n, n_pp)
     prey!(P, Q, params.interaction, n, params.interaction_resource, n_pp)
     K = params.encounter_kernel
-    @tullio E[i, w] = P[i, wp] * K[i, w, wp]
+    # @tullio E[i, w] = P[i, wp] * K[i, w, wp]
+    # Enzyme does not work with @tullio and not even with @turbo
+    for i ∈ axes(K, 1), w ∈ axes(K, 2)
+        for wp ∈ axes(K, 3)
+            E[i, w] += P[i, wp] * K[i, w, wp]
+        end
+    end
     nothing
 end
 
@@ -112,8 +118,14 @@ function get_e_growth!(e_growth, e_repro, e)
 end
 
 function get_pred_rate!(pred_rate, n, pred_rate_kernel, one_minus_feeding_level)
-    @tullio pred_rate[i, wj] = pred_rate_kernel[i, wi, wj] * 
-                               one_minus_feeding_level[i, wi] * n[i, wi]
+    # @tullio pred_rate[i, wj] = pred_rate_kernel[i, wi, wj] * 
+    #                            one_minus_feeding_level[i, wi] * n[i, wi]
+    # Enzyme does not work with @tullio and not even with @turbo
+    temp = one_minus_feeding_level .* n
+    for i in axes(pred_rate, 1), wj in axes(pred_rate, 2)
+        pred_rate[i, wj] = sum(pred_rate_kernel[i, wi, wj] * temp[i, wi]
+                                   for wi in 1:size(n, 2))
+    end
     nothing
 end
 
@@ -126,8 +138,12 @@ function get_pred_mort!(pred_mort, params::Params, n, n_pp, pred_rate)
 end
 
 function get_f_mort!(f_mort, params::Params, effort)
-    @tullio f_mort[i, w] = params.selectivity[g, i, w] * params.catchability[g, i] *
-                           effort[g]
+    # @tullio f_mort[i, w] = params.selectivity[g, i, w] * params.catchability[g, i] *
+    #                        effort[g]
+    for i in axes(f_mort, 1), w in axes(f_mort, 2)
+        f_mort[i, w] = sum(params.selectivity[g, i, w] * params.catchability[g, i] *
+                            effort[g] for g in axes(params.selectivity, 1))
+    end
     nothing
 end
 
@@ -137,8 +153,13 @@ function get_mort!(mort, params::Params, f_mort, pred_mort)
 end
 
 function get_rdi!(rdi, params::Params, n, e_repro)
-    @tullio rdi[i] = 0.5 * e_repro[i, w] * n[i, w] * params.dw[w] * 
-                     params.erepro[i] / params.w[params.w_min_idx[i]]
+    # @tullio rdi[i] = 0.5 * e_repro[i, w] * n[i, w] * params.dw[w] * 
+    #                  params.erepro[i] / params.w[params.w_min_idx[i]]
+    for i ∈ axes(rdi, 1)
+        rdi[i] = 0.5 * sum(e_repro[i, w] * n[i, w] * params.dw[w] * 
+                           params.erepro[i] / params.w[params.w_min_idx[i]]
+                           for w ∈ axes(n, 2))
+    end
     nothing
 end
 
@@ -148,6 +169,10 @@ function get_rdd!(rdd, rdi, R_max)
 end
 
 function get_resource_mort!(resource_mort, params::Params, pred_rate)
-    @tullio resource_mort[w] = params.interaction_resource[i] * pred_rate[i, w]
+    # @tullio resource_mort[w] = params.interaction_resource[i] * pred_rate[i, w]
+    for w ∈ axes(resource_mort, 1)
+        resource_mort[w] = sum(params.interaction_resource[i] * pred_rate[i, w]
+                               for i ∈ axes(pred_rate, 1))
+    end
     nothing
 end
